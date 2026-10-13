@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lulu Service Console – Popup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --green:#1e6b3b; --green-d:#185a31; --green-l:#e8f2ea; --green-xl:#f3f8f4;
+    --amber:#c97f16; --amber-l:#fdf3e1; --amber-b:#e9a63a;
+    --red:#a8304a; --red-l:#fbe9ee; --blue:#2350d6; --orange:#e2742b; --orange-l:#fff3ea;
+    --violet-l:#f1edfb;
+    --ink:#1c2420; --muted:#6b7570; --line:#e3e8e4; --bg:#ffffff; --page:#eef1ef;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+    --sans:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:var(--sans);color:var(--ink);background:var(--page);font-size:14px}
+  button{font-family:inherit;cursor:pointer}
+  .mono{font-family:var(--mono)}
+
+  /* ---------- Host page (agent workspace) ---------- */
+  .host-top{height:56px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 24px}
+  .host-top .logo{font-weight:700;letter-spacing:-.2px}
+  .host-top .pill{margin-left:auto;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#2fbf63;display:inline-block}
+  .host{display:grid;grid-template-columns:300px 1fr;height:calc(100% - 56px)}
+  .host-list{background:#fff;border-right:1px solid var(--line);padding:16px;overflow:auto}
+  .host-list h4{margin:0 0 12px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .conv{padding:12px;border-radius:10px;border:1px solid var(--line);margin-bottom:10px;cursor:pointer}
+  .conv.active{border-color:var(--green);background:var(--green-xl)}
+  .conv b{display:block;font-size:14px}
+  .conv span{font-size:12px;color:var(--muted)}
+  .host-main{padding:32px;display:flex;align-items:flex-start;justify-content:center}
+  .call-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px;max-width:520px;width:100%}
+  .call-card h2{margin:0 0 6px;font-size:20px}
+  .call-card p{margin:0 0 20px;color:var(--muted);line-height:1.5}
+  .btn-primary{background:var(--green);color:#fff;border:0;border-radius:8px;padding:12px 18px;font-weight:600;font-size:14px}
+  .btn-primary:hover{background:var(--green-d)}
+
+  /* ---------- Modal shell ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(15,25,20,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50;opacity:0;pointer-events:none;transition:opacity .2s}
+  .overlay.open{opacity:1;pointer-events:auto}
+  .modal{width:min(1400px,100%);height:min(900px,100%);background:var(--bg);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.35);transform:translateY(12px) scale(.985);transition:transform .2s}
+  .overlay.open .modal{transform:none}
+
+  /* header */
+  .mh{background:var(--green);color:#fff;display:flex;align-items:center;gap:20px;padding:12px 16px;flex-shrink:0}
+  .brand{font-weight:700;font-size:22px;letter-spacing:-.3px;padding-right:18px;border-right:1px solid rgba(255,255,255,.25)}
+  .brand-sub{font-size:12px;line-height:1.3;opacity:.85}
+  .search{flex:1;max-width:520px;background:rgba(0,0,0,.14);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#fff;padding:10px 14px;font-size:13px;font-family:inherit;outline:none}
+  .search::placeholder{color:rgba(255,255,255,.7)}
+  .hbtn{background:rgba(0,0,0,.12);border:1px solid rgba(255,255,255,.2);color:#fff;padding:9px 14px;border-radius:6px;font-size:13px;font-weight:500}
+  .hbtn.on{background:#fff;color:var(--green)}
+  .callchip{margin-left:auto;display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:8px 14px;font-family:var(--mono);font-size:13px}
+  .callchip .t{opacity:.75}
+  .xbtn{background:transparent;border:0;color:#fff;font-size:22px;line-height:1;width:34px;height:34px;border-radius:6px}
+  .xbtn:hover{background:rgba(255,255,255,.15)}
+
+  /* body columns */
+  .mb{flex:1;display:grid;grid-template-columns:300px 1fr 300px;min-height:0}
+  .col{overflow:auto;min-height:0}
+  .col-l{border-right:1px solid var(--line)}
+  .col-r{border-left:1px solid var(--line)}
+  .sec-h{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;font-weight:600;font-size:13px}
+  .sec-h.g{background:var(--green-l);color:var(--green)}
+  .sec-h.p{background:var(--red-l);color:var(--red)}
+  .sec-h.o{background:var(--orange-l);color:var(--orange)}
+  .sec-h.v{background:var(--violet-l);color:#5a3fb0}
+  .icons{display:flex;gap:6px}
+  .ib{width:28px;height:28px;border:1px solid var(--line);background:#fff;border-radius:6px;color:var(--muted);font-size:12px;display:grid;place-items:center}
+  .pad{padding:16px}
+  .avatar{width:48px;height:48px;border-radius:50%;background:var(--green);color:#fff;font-weight:600;display:grid;place-items:center;font-size:16px;flex-shrink:0}
+  .who{display:flex;gap:14px;align-items:center;margin-bottom:18px}
+  .who b{font-size:17px}
+  .who .id{color:var(--muted);font-family:var(--mono);font-size:12px;margin-top:4px}
+  .kv{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:13px;gap:10px}
+  .kv .k{color:var(--muted)}
+  .kv .v{text-align:right}
+  .kv a{color:var(--blue);text-decoration:none;font-family:var(--mono);font-size:12.5px}
+  .btn-block{width:100%;padding:11px;border-radius:7px;font-weight:600;font-size:14px;margin-top:14px}
+  .btn-g{background:var(--green);border:0;color:#fff}
+  .btn-g:hover{background:var(--green-d)}
+  .btn-o{background:#fff;border:1.5px solid var(--green);color:var(--green)}
+  .btn-o:hover{background:var(--green-xl)}
+  .btn-r{background:var(--red);border:0;color:#fff}
+  .btn-r:hover{filter:brightness(.92)}
+  .muted{color:var(--muted)}
+  .addr{line-height:1.6;font-size:13.5px}
+  .tags{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .tag{padding:5px 12px;border-radius:999px;font-size:12px;font-weight:600}
+  .tag.plat{background:var(--red);color:#fff}
+  .tag.week{background:var(--green-l);color:var(--green)}
+  .tag.watch{background:var(--amber-l);color:var(--amber)}
+
+  /* center */
+  .ord-h{padding:20px 24px 10px}
+  .ord-h h1{margin:0;font-family:var(--mono);font-size:26px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .status-row{display:flex;gap:8px;margin:12px 0 4px;flex-wrap:wrap}
+  .st{padding:6px 12px;border-radius:5px;font-size:13px;font-weight:600}
+  .st.amber{background:var(--amber);color:#fff}
+  .st.ghost{background:#f3f5f4;border:1px solid var(--line);color:var(--ink);font-weight:500}
+  .meta{display:flex;justify-content:flex-end;gap:32px;margin-top:4px;flex-wrap:wrap}
+  .meta div{font-size:12px;color:var(--muted)}
+  .meta b{display:block;color:var(--ink);font-family:var(--mono);font-size:15px;margin-top:4px;font-weight:500}
+  .lc-h{background:var(--orange-l);color:var(--orange);display:flex;justify-content:space-between;padding:10px 24px;font-weight:600;font-size:13px}
+  .lc-h .mono{font-weight:500}
+  .stages{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;padding:14px 24px 8px}
+  .stage{background:var(--green-xl);border:2px solid transparent;border-radius:6px;padding:10px 10px 8px;text-align:left;color:var(--green);display:flex;flex-direction:column;gap:3px;min-height:112px}
+  .stage:hover{border-color:#bcd8c3}
+  .stage .n{font-weight:600;font-size:13px}
+  .stage .tm{font-family:var(--mono);font-weight:500;font-size:13px}
+  .stage .est{font-family:var(--mono);font-size:11px;color:#8aa593}
+  .stage .badge{margin-top:auto;align-self:flex-start;background:#d9ebdd;color:var(--green);font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px}
+  .stage.sel{border-color:var(--ink)}
+  .stage.ret{background:var(--blue);color:#fff}
+  .stage.ret .est{color:rgba(255,255,255,.7)}
+  .stage.ret .badge{background:#fff;color:#d23a3a}
+  .stage.ret.sel{border-color:#0d1f66;box-shadow:0 0 0 2px #fff inset}
+  .lc-foot{display:flex;align-items:center;justify-content:space-between;padding:4px 24px 14px;gap:8px;flex-wrap:wrap}
+  .lc-foot span{font-size:12.5px;color:var(--muted)}
+  .lc-foot .btns{display:flex;gap:8px}
+  .sm{background:#fff;border:1px solid var(--line);border-radius:6px;padding:7px 12px;font-size:13px}
+  .sm:hover{background:#f6f8f7}
+  .sd-h{background:var(--green-l);color:var(--green);padding:10px 24px;font-weight:600;font-size:13px}
+  .sd{padding:16px 24px 20px}
+  .sd h3{margin:0 0 14px;font-size:18px;font-weight:600}
+  .sd h3 .mono{color:var(--muted);font-size:13px;font-weight:400;margin-left:8px}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:#f7f9f8;border:1px solid var(--line);border-radius:8px;padding:14px 18px}
+  .card .ct{font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:8px}
+  .card .kv .v{font-family:var(--mono);font-size:12.5px}
+  .card .kv.total{border-top:1px solid var(--line);margin-top:4px;padding-top:9px;font-weight:600}
+  .items{width:100%;border-collapse:collapse;font-size:13px}
+  .items td,.items th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
+  .items th{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .items td.r,.items th.r{text-align:right;font-family:var(--mono)}
+  .chip{font-size:11px;padding:2px 8px;border-radius:999px;font-weight:600}
+  .chip.ok{background:var(--green-l);color:var(--green)}
+  .chip.ret{background:#e6ecfd;color:var(--blue)}
+  .chip.hold{background:var(--amber-l);color:var(--amber)}
+  .note{margin-top:14px;font-size:13px;color:var(--muted);line-height:1.5}
+  .ret-row{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:14px 24px;border-bottom:1px solid var(--line);font-size:13px}
+
+  /* right */
+  .alert{margin:12px 16px;background:var(--amber-l);border-left:4px solid var(--amber-b);border-radius:6px;padding:12px 14px}
+  .alert b{color:#9a5b05;font-size:14px;display:block;margin-bottom:4px}
+  .alert div{color:#8a5a12;font-size:13px;line-height:1.45}
+  .tot{display:flex;justify-content:space-between;font-size:13px;padding:4px 0 10px}
+  .tot b{font-family:var(--mono)}
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+  .tile{border:1px solid var(--line);border-radius:6px;text-align:center;padding:12px 4px;background:#fafbfa}
+  .tile .a{font-family:var(--mono);font-size:16px;font-weight:600}
+  .tile .l{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .tile.g{background:var(--green-l);border-color:#cfe4d4}.tile.g .a{color:var(--green)}
+  .tile.r{background:var(--red-l);border-color:#f2cdd7}.tile.r .a{color:var(--red)}
+  .tile.e .a{color:#555}
+
+  /* requirement ids */
+  .req{display:none;font-family:var(--mono);font-size:10px;font-weight:600;background:#ffe56b;color:#5a4700;padding:2px 6px;border-radius:4px;margin-left:6px;vertical-align:middle}
+  .show-req .req{display:inline-block}
+
+  /* toast */
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1c2420;color:#fff;padding:12px 18px;border-radius:8px;font-size:13px;opacity:0;transition:.2s;z-index:60;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%)}
+
+  /* mobile tab bar (hidden on desktop) */
+  .mtabs{display:none;background:#fff;border-bottom:1px solid var(--line);flex-shrink:0}
+  .mtabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:12px 6px;font-size:13px;font-weight:600;color:var(--muted)}
+  .mtabs button.on{color:var(--green);border-bottom-color:var(--green)}
+  .msearch{display:none}
+  .hbtn,.callchip,.stage .badge{white-space:nowrap}
+  .search{min-width:0}
+
+  /* stages scroll sideways when space runs out */
+  .stages{grid-template-columns:repeat(7,minmax(92px,1fr));overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+  .stage{scroll-snap-align:start}
+
+  /* ---- small laptop ---- */
+  @media (max-width:1240px){
+    .mb{grid-template-columns:270px 1fr 280px}
+    .search{max-width:340px}
+    .ord-h,.sd{padding-left:18px;padding-right:18px}
+    .lc-h,.sd-h,.lc-foot,.ret-row{padding-left:18px;padding-right:18px}
+    .stages{padding-left:18px;padding-right:18px}
+    .cards{grid-template-columns:1fr}
+  }
+
+  /* ---- tablet & phone: tabbed single column ---- */
+  @media (max-width:960px){
+    .mtabs{display:flex}
+    .mb{display:block;position:relative}
+    .col{display:none;height:100%;overflow:auto}
+    .col.active{display:block}
+    .col-l,.col-r{border:0}
+    .brand-sub{display:none}
+    .cards{grid-template-columns:1fr 1fr}
+    .host{grid-template-columns:1fr}.host-list{display:none}
+  }
+
+  /* ---- phone ---- */
+  @media (max-width:640px){
+    body{font-size:14px}
+    .host-top{padding:0 16px}.host-top .muted{display:none}
+    .host-main{padding:16px}
+    .call-card{padding:20px}
+    .call-card .btn-primary{width:100%}
+
+    .overlay{padding:0;align-items:stretch}
+    .modal{border-radius:0;height:100%;height:100dvh;width:100%}
+    .mh{flex-wrap:wrap;gap:10px;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top))}
+    .brand{font-size:19px;padding-right:0;border:0}
+    .search{display:none}
+    .hbtn{padding:7px 10px;font-size:12px}
+    .callchip{padding:6px 10px;font-size:12px;gap:6px}
+    .callchip .num{display:none}
+    .xbtn{width:40px;height:40px}
+    .msearch{display:block;width:100%;order:10;max-width:none}
+
+    .mtabs button{padding:11px 4px;font-size:12.5px}
+    .pad,.ord-h,.sd{padding-left:16px;padding-right:16px}
+    .sec-h,.lc-h,.sd-h,.lc-foot,.ret-row,.stages{padding-left:16px;padding-right:16px}
+
+    .ord-h h1{font-size:22px}
+    .meta{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;justify-content:stretch;margin-top:12px}
+    .meta b{font-size:14px}
+    .lc-h{flex-direction:column;gap:2px}
+    .lc-foot{flex-direction:column;align-items:stretch}
+    .lc-foot .btns .sm{flex:1}
+    .stages{grid-template-columns:repeat(7,104px)}
+    .stage{min-height:104px}
+
+    .cards{grid-template-columns:1fr}
+    .card{padding:12px 14px}
+    .kv{font-size:13px}
+    .items{font-size:12.5px}
+    .items td,.items th{padding:8px 4px}
+    .items th:nth-child(2),.items td:nth-child(2){display:none}
+
+    .ret-row{grid-template-columns:1fr auto;gap:6px 10px}
+    .ret-row > span:nth-child(2){grid-column:1 / -1;order:3;color:var(--muted)}
+
+    .tile .a{font-size:15px}
+    .btn-block{padding:13px}
+    .toast{left:16px;right:16px;transform:translateY(20px);text-align:center;bottom:max(16px,env(safe-area-inset-bottom))}
+    .toast.show{transform:none}
+  }
+  @media (max-width:360px){
+    .tiles{grid-template-columns:1fr 1fr 1fr;gap:6px}
+    .tile .a{font-size:13px}
+    .hbtn{display:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= HOST PAGE ================= -->
+<header class="host-top">
+  <span class="logo">Agent Workspace</span>
+  <span class="muted" style="font-size:13px">Unified Inbox</span>
+  <span class="pill"><span class="dot"></span> Available · Voice + Chat</span>
+</header>
+<div class="host">
+  <aside class="host-list">
+    <h4>Active conversations</h4>
+    <div class="conv active"><b>Rehab Nasser</b><span>Voice · +971 50 442 7719 · ORD-4102</span></div>
+    <div class="conv"><b>Omar Al Hashimi</b><span>WhatsApp · Delivery slot change</span></div>
+    <div class="conv"><b>Priya Menon</b><span>Email · Missing item claim</span></div>
+  </aside>
+  <main class="host-main">
+    <div class="call-card">
+      <h2>Live call · Rehab Nasser</h2>
+      <p>Customer matched on mobile number. Latest order ORD-4102 has a return in progress with a refund on hold.</p>
+      <button class="btn-primary" id="fetchBtn" onclick="fetchProfile()">Fetch customer profile</button>
+    </div>
+  </main>
+</div>
+
+<!-- ================= POPUP ================= -->
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Lulu service console">
+  <div class="modal" id="modal">
+    <div class="mh">
+      <div class="brand">LuLu</div>
+      <div class="brand-sub">Service console<br>Online &amp; Minutes</div>
+      <input class="search" placeholder="Search mobile, email, customer ID, order or return number">
+      <button class="hbtn" id="reqBtn" onclick="toggleReq()">Show requirement IDs</button>
+      <div class="callchip"><span class="dot"></span><span class="num">+971 50 442 7719</span> <span class="t" id="timer">02:14</span></div>
+      <button class="xbtn" onclick="closeConsole()" aria-label="Close">&times;</button>
+      <input class="search msearch" placeholder="Search mobile, email, ID, order…">
+    </div>
+    <nav class="mtabs" id="mtabs">
+      <button data-t="l" onclick="setTab('l')">Customer</button>
+      <button data-t="c" class="on" onclick="setTab('c')">Order</button>
+      <button data-t="r" onclick="setTab('r')">Delivery &amp; payment</button>
+    </nav>
+
+    <div class="mb">
+      <!-- LEFT -->
+      <section class="col col-l" data-t="l">
+        <div class="sec-h g">Customer profile<span class="req">REQ-CP-01</span>
+          <div class="icons"><button class="ib" title="Call">&#9742;</button><button class="ib" title="Link">&#128279;</button><button class="ib" title="Block">&#8856;</button></div>
+        </div>
+        <div class="pad">
+          <div class="who"><div class="avatar">RN</div><div><b>Rehab Nasser</b><div class="id">CUST-88214</div></div></div>
+          <div class="kv"><span class="k">Mobile</span><a href="#">+971 50 442 7719</a></div>
+          <div class="kv"><span class="k">Alternate</span><a href="#">+971 4 388 1160</a></div>
+          <div class="kv"><span class="k">Email</span><a href="#">rehab.n@mail.com</a></div>
+          <div class="kv"><span class="k">Language</span><span class="v">Arabic</span></div>
+          <div class="kv"><span class="k">Lulu rewards</span><span class="v mono">8,420 pts · Gold</span></div>
+          <button class="btn-block btn-g" onclick="toast('Loading order history…')">View order history</button>
+        </div>
+
+        <div class="sec-h g">Delivery address<span class="req">REQ-CP-02</span></div>
+        <div class="pad addr">
+          Villa 22, Al Barsha 2, Dubai<br>
+          <span class="muted">Gate code 4471 · leave with security</span><br>
+          <span class="muted">2 saved addresses · WhatsApp opted in</span>
+          <button class="btn-block btn-o" onclick="toast('Address editor opened')">Update address</button>
+        </div>
+
+        <div class="sec-h p">Segment<span class="req">REQ-CP-03</span></div>
+        <div class="pad">
+          <div class="tags"><span class="tag plat">Platinum</span><span class="tag week">Weekly shopper</span><span class="tag watch">Refund watch</span></div>
+          <div class="kv"><span class="k">RFM</span><span class="v mono">5-5-4 champion</span></div>
+          <div class="kv"><span class="k">Orders (12 mo)</span><span class="v mono">47</span></div>
+          <div class="kv"><span class="k">Refunds (12 mo)</span><span class="v mono">3</span></div>
+        </div>
+      </section>
+
+      <!-- CENTER -->
+      <section class="col active" data-t="c">
+        <div class="ord-h">
+          <h1>ORD-4102 <span class="muted" style="font-size:14px;cursor:pointer" onclick="copy('ORD-4102')" title="Copy">&#10697;</span><span class="req">REQ-OR-01</span></h1>
+          <div class="status-row"><span class="st amber">Return in progress</span><span class="st ghost">Scheduled delivery</span></div>
+          <div class="meta">
+            <div>Placed<b>21 Aug 12:05</b></div>
+            <div>Final ETA<b>16:00 – 18:00</b></div>
+            <div>Store<b>Al Quoz</b></div>
+            <div>Items<b>11</b></div>
+          </div>
+        </div>
+
+        <div class="lc-h"><span>Lifecycle — estimated against actual<span class="req">REQ-LC-01</span></span><span class="mono">6 days in return stage</span></div>
+        <div class="stages" id="stages"></div>
+        <div class="lc-foot">
+          <span>Select a stage to see the items and what happened to them.</span>
+          <div class="btns"><button class="sm" onclick="toast('Order log opened')">Order log</button><button class="sm" onclick="toast('Comments opened')">Comments</button></div>
+        </div>
+
+        <div class="sd-h">Stage detail<span class="req">REQ-LC-02</span></div>
+        <div class="sd" id="detail"></div>
+
+        <div class="sec-h v" style="padding:12px 24px">Return orders<span class="mono" style="font-weight:500">1 return</span></div>
+        <div class="ret-row">
+          <span class="mono" style="font-weight:600">RET-1187</span>
+          <span>2 items · Philips Air Fryer XXL, Tefal Ingenio pan set · picked up 22 Aug by Anwar Basheer</span>
+          <span class="chip hold">Awaiting QC</span>
+        </div>
+      </section>
+
+      <!-- RIGHT -->
+      <section class="col col-r" data-t="r">
+        <div class="sec-h o">Delivery<span class="req">REQ-DL-01</span></div>
+        <div class="alert"><b>Refund held pending quality check</b><div>AED 1,240.00 releases only if the return passes inspection at Al Quoz.</div></div>
+        <div class="pad" style="padding-top:4px">
+          <div class="kv"><span class="k">Delivered by</span><span class="v">Rami Haddad</span></div>
+          <div class="kv"><span class="k">Delivered</span><span class="v mono">21 Aug 17:22</span></div>
+          <div class="kv"><span class="k">Received by</span><span class="v">Customer</span></div>
+          <div class="kv"><span class="k">Proof</span><span class="v">Signature captured</span></div>
+          <div class="kv"><span class="k">Return picker</span><span class="v">Anwar Basheer</span></div>
+          <div class="kv"><span class="k">Contact</span><a href="#">+971 56 220 4471</a></div>
+        </div>
+
+        <div class="sec-h p">Payment details<span class="req">REQ-PY-01</span></div>
+        <div class="pad">
+          <div class="tot"><span class="muted">Total order value</span><b>AED 1,645.54</b></div>
+          <div class="tiles">
+            <div class="tile g"><div class="a">1,645.54</div><div class="l">Apple Pay</div></div>
+            <div class="tile e"><div class="a">–</div><div class="l">Cash</div></div>
+            <div class="tile e"><div class="a">–</div><div class="l">Store credit</div></div>
+          </div>
+          <div class="tot"><span class="muted">Total refund value</span><b>AED 1,240.00 held</b></div>
+          <div class="tiles">
+            <div class="tile r"><div class="a">1,240.00</div><div class="l">Source</div></div>
+            <div class="tile e"><div class="a">–</div><div class="l">Store credit</div></div>
+            <div class="tile e"><div class="a">–</div><div class="l">Voucher</div></div>
+          </div>
+          <button class="btn-block btn-r" onclick="toast('Refund blocked: return has not passed QC at Al Quoz')">Process refund</button>
+          <button class="btn-block btn-o" onclick="toast('Store credit flow opened')">Issue store credit</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const items = [
+  {n:'Philips Air Fryer XXL', q:1, p:899.00, s:'ret'},
+  {n:'Tefal Ingenio pan set (5 pc)', q:1, p:341.00, s:'ret'},
+  {n:'Fresh salmon fillet 1kg', q:1, p:89.00},
+  {n:'India Gate basmati rice 5kg', q:1, p:54.50},
+  {n:'Nescafé Gold 200g', q:1, p:42.75},
+  {n:'Extra virgin olive oil 1L', q:1, p:36.00},
+  {n:'Tide detergent powder 3kg', q:1, p:31.00},
+  {n:'Lulu farm eggs 30 pcs', q:1, p:24.50},
+  {n:'Almarai fresh milk 2L', q:2, p:23.00},
+  {n:'Arabic bread family pack', q:1, p:8.50},
+  {n:'Bananas 1kg', q:1, p:6.50},
+];
+const aed = v => 'AED ' + v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const kv = (k,v) => `<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+const itemTable = (filter, statusFn) => `<table class="items"><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Value</th><th>Status</th></tr></thead><tbody>${
+  items.filter(filter).map(i=>`<tr><td>${i.n}</td><td class="r">${i.q}</td><td class="r">${i.p.toFixed(2)}</td><td>${statusFn(i)}</td></tr>`).join('')
+}</tbody></table>`;
+
+const stages = [
+  {id:'placed',n:'Placed',t:'12:05',e:'12:05',
+   d:()=>`<h3>Placed <span class="mono">12:05</span></h3>
+   <div class="cards" style="grid-template-columns:1fr">
+     <div class="card"><div class="ct">Order</div>${kv('Channel','Lulu app · iOS')}${kv('Slot','Scheduled · 16:00 – 18:00')}${kv('Items','11 lines · 12 units')}</div>
+   </div><div style="margin-top:16px">${itemTable(()=>true,()=> '<span class="chip ok">Ordered</span>')}</div>`},
+  {id:'payment',n:'Payment',t:'12:06',e:'12:06',
+   d:()=>`<h3>Payment <span class="mono">12:06</span></h3>
+   <div class="cards">
+     <div class="card"><div class="ct">Payment</div>${kv('Method','Apple Pay')}${kv('Authorisation','AUTH-71904428')}${kv('Authorised','21 Aug 12:06')}${kv('Amount','AED 1,645.54')}${kv('Status','Paid in full')}</div>
+     <div class="card"><div class="ct">Order value</div>${kv('Subtotal','AED 1,555.75')}${kv('Delivery','AED 12.00')}${kv('Promotion','AED 0.00')}${kv('VAT','AED 77.79')}<div class="kv total"><span class="k">Total</span><span class="v">AED 1,645.54</span></div></div>
+   </div>`},
+  {id:'store',n:'Store',t:'12:40',e:'12:45',
+   d:()=>`<h3>Store accepted <span class="mono">12:40</span></h3>
+   <div class="cards"><div class="card"><div class="ct">Fulfilment</div>${kv('Store','Al Quoz')}${kv('Accepted','12:40 (est 12:45)')}${kv('Queue position','4')}</div>
+   <div class="card"><div class="ct">Stock check</div>${kv('In stock','11 / 11')}${kv('Substitutions','None')}</div></div>`},
+  {id:'picked',n:'Picked',t:'15:10',e:'15:20',
+   d:()=>`<h3>Picked <span class="mono">15:10</span></h3>
+   ${itemTable(()=>true,()=> '<span class="chip ok">Picked</span>')}
+   <div class="note">All 11 lines picked complete. No substitutions or short-picks.</div>`},
+  {id:'dispatched',n:'Dispatched',t:'15:52',e:'16:00',
+   d:()=>`<h3>Dispatched <span class="mono">15:52</span></h3>
+   <div class="cards"><div class="card"><div class="ct">Driver</div>${kv('Name','Rami Haddad')}${kv('Vehicle','Van · D 48213')}${kv('Bags','6 + 2 large items')}</div>
+   <div class="card"><div class="ct">Route</div>${kv('Drop sequence','3 of 9')}${kv('Distance','14.2 km')}${kv('ETA','16:00 – 18:00')}</div></div>`},
+  {id:'delivered',n:'Delivered',t:'17:22',e:'17:30',
+   d:()=>`<h3>Delivered <span class="mono">17:22</span></h3>
+   <div class="cards"><div class="card"><div class="ct">Handover</div>${kv('Received by','Customer')}${kv('Proof','Signature captured')}${kv('Location','Villa 22, Al Barsha 2')}</div>
+   <div class="card"><div class="ct">Feedback</div>${kv('Delivery rating','5 / 5')}${kv('Complaints at handover','None')}</div></div>`},
+  {id:'return',n:'Return',t:'22 Aug',e:'–',ret:true,
+   d:()=>`<h3>Return <span class="mono">22 Aug · 6 days open</span></h3>
+   <div class="cards" style="margin-bottom:16px">
+     <div class="card"><div class="ct">Return request</div>${kv('Return ID','RET-1187')}${kv('Reason','Not as expected')}${kv('Picked up by','Anwar Basheer')}${kv('Picked up','22 Aug')}</div>
+     <div class="card"><div class="ct">Refund</div>${kv('Value','AED 1,240.00')}${kv('Destination','Source · Apple Pay')}${kv('Status','Held — pending QC')}${kv('QC location','Al Quoz')}</div>
+   </div>
+   ${itemTable(i=>i.s==='ret',()=> '<span class="chip hold">Awaiting QC</span>')}`},
+];
+
+let selected = 'payment';
+function renderStages(){
+  document.getElementById('stages').innerHTML = stages.map(s=>`
+    <button class="stage ${s.ret?'ret':''} ${s.id===selected?'sel':''}" onclick="selectStage('${s.id}')">
+      <span class="n">${s.n}</span><span class="tm">${s.t}</span><span class="est">Est ${s.e}</span>
+      <span class="badge">${s.ret?'6 days open':'On time'}</span>
+    </button>`).join('');
+  document.getElementById('detail').innerHTML = stages.find(s=>s.id===selected).d();
+}
+function selectStage(id){ selected=id; renderStages(); }
+
+const ov = document.getElementById('overlay');
+function openConsole(){ ov.classList.add('open'); }
+function closeConsole(){ ov.classList.remove('open'); }
+ov.addEventListener('click', e => { if(e.target===ov) closeConsole(); });
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeConsole(); });
+
+function toggleReq(){
+  const m=document.getElementById('modal'); m.classList.toggle('show-req');
+  const b=document.getElementById('reqBtn'); const on=m.classList.contains('show-req');
+  b.classList.toggle('on',on); b.textContent = on?'Hide requirement IDs':'Show requirement IDs';
+}
+let tt;
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2200); }
+function copy(v){ try{navigator.clipboard.writeText(v);}catch(e){} toast(v+' copied'); }
+
+// live call timer
+let secs = 2*60+14;
+setInterval(()=>{ secs++; document.getElementById('timer').textContent = String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0'); },1000);
+
+function setTab(t){
+  document.querySelectorAll('.mb .col').forEach(c=>c.classList.toggle('active',c.dataset.t===t));
+  document.querySelectorAll('#mtabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  const c=document.querySelector('.mb .col.active'); if(c) c.scrollTop=0;
+}
+
+function fetchProfile(){
+  const b=document.getElementById('fetchBtn');
+  b.disabled=true; b.textContent='Fetching customer profile…';
+  setTimeout(()=>{ b.disabled=false; b.textContent='Fetch customer profile'; openConsole(); },600);
+}
+
+renderStages();
+</script>
+</body>
+</html>
